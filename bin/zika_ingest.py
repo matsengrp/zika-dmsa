@@ -3,47 +3,50 @@
 # ==== Packages
 import os, re, time, datetime, csv, sys
 from Bio import SeqIO
+from typing import NamedTuple
 
-# === INput variables
-
+# === Input variables
 zika_seqs = "../example_data/small.fasta"
 
-# From fauna, think how to move over
+# From fauna
 strain_fix_fname =  "zika_strain_name_fix.tsv"
 location_fix_fname = "zika_location_fix.tsv"
 date_fix_fname = "zika_date_fix.tsv"
+
 virus_fasta_fields = {1:'strain', 3:'collection_date', 4: 'host', 5:'country'}
 sequence_fasta_fields = {0:'accession', 1:'strain'}
 
 # ==== Functions
 # vdl/uploads.py
-def replace_strain_name(original_name, fixes={}):
+# Originally 3 functions: define_strain_fixes, define_location_fixes, define_date_fixes
+def define_fixes_dict(fname:str) -> dict[str,str]:
     '''
-    return the new strain name that will replace the original
-    '''
-    if original_name in fixes:
-        return fixes[original_name] 
-    else:
-        return original_name 
-
-# vdl/uploads.py
-def define_strain_fixes(fname):  
-    '''
-    Open strain name fixing files and define corresponding dictionaries
+    Open strain/location/date fixing tsv files and define corresponding dictionaries
     '''
     reader = csv.DictReader(filter(lambda row: row[0]!='#', open(fname)), delimiter='\t')
-    fix_whole_name = {}
+    fixes_dict = {}
     for line in reader:
-        fix_whole_name[line['label'].encode().decode('unicode-escape')] = line['fix']
-    return fix_whole_name         
+        fixes_dict[line['label'].encode().decode('unicode-escape')] = line['fix']
+    return fixes_dict
 
-fix_whole_name = define_strain_fixes(strain_fix_fname)  # tsv file in Input
-#type(fix_whole_name)
-#print(list(fix_whole_name)[:10])
+# Originally function: replace_strain_name, also at L112 in upload.py
+def fixes_str(original_str:str, fixes_dict:dict[str,str]={}):
+    '''
+    return the new strain name/location/date that will replace the original string
+    '''
+    if original_str in fixes_dict:
+        return fixes[original_str] 
+    else:
+        return original_str
 
-def fix_name(name): # polymorphism, overwrite fix_names in upload.py
+# vdl/zika_uploads.py
+def fixes_strain_name(name, fixes_tsv:str="") -> (str,str): # Since we can't decide if we want strain or name
+    fixes_dict = {}
+    if(len(fixes_tsv)>0):
+        fixes_dict = define_fixes_dict(fixes_tsv)
+    
     original_name = name
-    name = replace_strain_name(original_name, fix_whole_name) 
+    name = fixes_str(original_name, fixes_dict) 
     name = name.replace('Zika_virus', '').replace('Zikavirus', '').replace('Zika virus', '').replace('Zika', '').replace('ZIKV', '')
     name = name.replace('Human', '').replace('human', '').replace('H.sapiens_wt', '').replace('H.sapiens_tc', '').replace('Hsapiens_tc', '').replace('H.sapiens-tc', '').replace('Homo_sapiens', '').replace('Homo sapiens', '').replace('Hsapiens', '').replace('H.sapiens', '')
     name = name.replace('/Hu/', '')
@@ -53,13 +56,13 @@ def fix_name(name): # polymorphism, overwrite fix_names in upload.py
     name = name.replace(' ', '').replace('\'', '').replace('(', '').replace(')', '').replace('//', '/').replace('__', '_').replace('.', '').replace(',', '')
     name = re.sub('^[\/\_\-]', '', name)
     try: # ID must start with letter
-        name = 'V' + str(int(name))  # Deal with numbers (maybe python3)? V6845 ID requirement
+        name = 'V' + str(int(name))
     except:
         pass
-    name = replace_strain_name(name, fix_whole_name)    # Before and after local processing? (try with and without, see if different)
+    name = fixes_str(name, fixes_dict)
     return name, original_name
 
-# Load data
+# vdl/parse.py Load data
 def parse_fasta_file(fasta, virus_fasta_fields, sequence_fasta_fields, **kwargs):
     '''
     Parse FASTA file with default header formatting
@@ -100,6 +103,12 @@ def parse_fasta_file(fasta, virus_fasta_fields, sequence_fasta_fields, **kwargs)
         handle.close()
     return (viruses, sequences)
 
+# === Only fix casing on the Host?
+def fix_casing(self, document): # JC
+    for field in ['host']:
+        if field in document and document[field] is not None:
+            document[field] = self.camelcase_to_snakecase(document[field])
+
 ### === Main Method
 # vdl/upload.py L58
 # self.connect(**kwargs)
@@ -118,8 +127,16 @@ viruses, sequences = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fa
 # sequences = self.filter(sequences, 'accession', **kwargs)
 # print("")
 
-print(zika_fasta[0])
+# === Test combined dictionary methods
+fix_name_dict = define_fixes_dict(strain_fix_fname)  # tsv file in Input
+fix_location_dict = define_fixes_dict(location_fix_fname)
+fix_date_dict = define_fixes_dict(date_fix_fname)
 
-print("\n\nstrain: ",zika_fasta[0][0]['strain'])
+# === Process a smaller data file
+zika_fasta = "../example_data/small.fasta"
 
-print("fix_name output:", fix_name(zika_fasta[0][0]['strain']))
+zika_seqs = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
+
+print(zika_seqs[0])
+print("\n\nstrain: ",zika_seqs[0][0]['strain'])
+print("fix_strain_name output:", fixes_strain_name(zika_seqs[0][0]['strain']))

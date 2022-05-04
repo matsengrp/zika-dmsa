@@ -15,3 +15,5 @@ bin
   | # historical diagnostic script?  
   |_ check-countries-have-colors.sh
 ```
+
+Placing temporary notes in `FaunaReview.ipynb` but will delete when finished.

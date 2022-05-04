@@ -10,4 +10,6 @@ curl "https://www.viprbrc.org/brc/api/sequence?datatype=genome&family=flavi&spec
   sed 's:N/A:NA:g' > \
   GenomicFastaResults.fasta
 
+# Not using "segment", but can see how it's needed for other pathogens
+
 echo "total sequences: " `grep -c ">" GenomicFastaResults.fasta`

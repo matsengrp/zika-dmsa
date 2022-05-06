@@ -1,20 +1,28 @@
 #! /usr/bin/env python3
 
 # ==== Packages
-import os, re, time, datetime, csv, sys
+import os, re, time, csv, sys
 from Bio import SeqIO
 from typing import NamedTuple
+from datetime import datetime
 
 # === Input variables
-zika_seqs = "../example_data/small.fasta"
+zika_fasta = "../example_data/small.fasta"
 
 # From fauna
 strain_fix_fname =  "zika_strain_name_fix.tsv"
 location_fix_fname = "zika_location_fix.tsv"
 date_fix_fname = "zika_date_fix.tsv"
 
-virus_fasta_fields = {1:'strain', 3:'collection_date', 4: 'host', 5:'country'}
-sequence_fasta_fields = {0:'accession', 1:'strain'}
+#virus_fasta_fields = {1:'strain', 3:'collection_date', 4: 'host', 5:'country'}
+#sequence_fasta_fields = {0:'accession', 1:'strain'}
+# Seems duplicative, replace with:
+header_fasta_fields = {0:'accession', 1:'strain', 3:'collection_date', 4: 'host', 5:'country'}
+# If we're ignoring anything past 5, then don't pull from vipr
+
+virus="zika" # upload
+expected_date_formats = {'%Y_%m_%d','%Y (Month and day unknown)', '%Y-%m (Day unknown)', 
+                         '%Y %b %d','%Y-XX-XX', '%Y-%m-%d', '%Y-%m-%dT%H:%M:%SZ'}
 
 # ==== Functions
 # vdl/uploads.py
@@ -29,22 +37,23 @@ def define_fixes_dict(fname:str) -> dict[str,str]:
         fixes_dict[line['label'].encode().decode('unicode-escape')] = line['fix']
     return fixes_dict
 
-# Originally function: replace_strain_name, also at L112 in upload.py
 def fixes_str(original_str:str, fixes_dict:dict[str,str]={}):
     '''
-    return the new strain name/location/date that will replace the original string
+    return the new strain name that will replace the original string
+    cannot be applied to location and date since key is based on strain name
     '''
+    # labmda x: fixes[original_str] if original_str in fixes dict else original_str
     if original_str in fixes_dict:
         return fixes[original_str] 
     else:
         return original_str
 
 # vdl/zika_uploads.py
-def fixes_strain_name(name, fixes_tsv:str="") -> (str,str): # Since we can't decide if we want strain or name
-    fixes_dict = {}
-    if(len(fixes_tsv)>0):
+def fixes_strain_name(name, fixes_dict={}, fixes_tsv:str="") -> (str,str): # Since we can't decide if we want strain or name
+    if(len(fixes_dict)<1 and len(fixes_tsv)>0):
         fixes_dict = define_fixes_dict(fixes_tsv)
     
+    # https://stackoverflow.com/questions/2484156/is-str-replace-replace-ad-nauseam-a-standard-idiom-in-python
     original_name = name
     name = fixes_str(original_name, fixes_dict) 
     name = name.replace('Zika_virus', '').replace('Zikavirus', '').replace('Zika virus', '').replace('Zika', '').replace('ZIKV', '')
@@ -60,62 +69,47 @@ def fixes_strain_name(name, fixes_tsv:str="") -> (str,str): # Since we can't dec
     except:
         pass
     name = fixes_str(name, fixes_dict)
-    return name, original_name
+    return name
 
-# vdl/parse.py Load data
-def parse_fasta_file(fasta, virus_fasta_fields, sequence_fasta_fields, **kwargs):
-    '''
-    Parse FASTA file with default header formatting
-    :return: list of documents(dictionaries of attributes) to upload
-    '''
-    header_fixes = False
-    if (kwargs["fasta_header_fix"]):
-        header_fixes = {}
+def ncov_ingest_format_date(date_string: str, expected_formats: set) -> str:
+    """
+    Format *date_string* to ISO 8601 date (YYYY-MM-DD).
+    If *date_string* does not match *expected_formats*, return *date_string*.
+    >>> expected_formats = {'%Y-%m-%d', '%Y-%m-%dT%H:%M:%SZ'}
+    >>> format_date("2020", expected_formats)
+    '2020'
+    >>> format_date("2020-01", expected_formats)
+    '2020-01'
+    >>> format_date("2020-1-15", expected_formats)
+    '2020-01-15'
+    >>> format_date("2020-1-1", expected_formats)
+    '2020-01-01'
+    >>> format_date("2020-01-15", expected_formats)
+    '2020-01-15'
+    >>> format_date("2020-01-15T00:00:00Z", expected_formats)
+    '2020-01-15'
+    >>> format_date("2020-XX-XX", expected_formats)
+    '2020'
+    >>> format_date("2020 (Month and day unknown)", expected_formats)
+    '2020'
+    >>> format_date("2020-06 (Day unknown)", expected_formats)
+    '2020-06'
+    """
+    for date_format in expected_formats:
         try:
-            with open(kwargs["fasta_header_fix"], 'rU') as fh:
-                for line in fh:
-                    if not line.startswith('#'):
-                        k, v = line.strip().split("\t")
-                        header_fixes[k] = v                
-        except IOError:
-            raise Exception(kwargs["fasta_header_fix"], "not found")
-    viruses = []
-    sequences = []
-    try:
-        handle = open(fasta, 'r')
-    except IOError:
-        raise Exception(fasta, "not found")
-    else:
-        for record in SeqIO.parse(handle, "fasta"):
-            if header_fixes:
-                try:
-                    record.description = header_fixes[record.description]
-                except KeyError:
-                    raise Exception(record.description, "not in header fix file. Fatal.")
-            content = list(map(lambda x: x.strip(), record.description.replace(">", "").split('|')))
-            v = {key: content[ii] if ii < len(content) else "" for ii, key in virus_fasta_fields.items()}
-            s = {key: content[ii] if ii < len(content) else "" for ii, key in sequence_fasta_fields.items()}
-            s['sequence'] = str(record.seq).lower()
-            #v = self.add_virus_fields(v, **kwargs)
-            #s = self.add_sequence_fields(s, **kwargs)
-            sequences.append(s)
-            viruses.append(v)
-        handle.close()
-    return (viruses, sequences)
-
-# === Only fix casing on the Host?
-def fix_casing(self, document): # JC
-    for field in ['host']:
-        if field in document and document[field] is not None:
-            document[field] = self.camelcase_to_snakecase(document[field])
+            return datetime.strptime(date_string, date_format).strftime('%Y-%m-%d')
+        except ValueError:
+            continue
+    
+    return date_string
 
 ### === Main Method
 # vdl/upload.py L58
 # self.connect(**kwargs)
 # print("Uploading Viruses to VDB")
 # viruses, sequences = self.parse(**kwargs) #<= expand vdl/parse.py
-zika_fasta = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
-viruses, sequences = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
+# zika_fasta = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
+# viruses, sequences = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
 # print('Formatting documents for upload')
 # self.format_viruses(viruses, **kwargs)
 # self.format_sequences(sequences, **kwargs)
@@ -127,16 +121,55 @@ viruses, sequences = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fa
 # sequences = self.filter(sequences, 'accession', **kwargs)
 # print("")
 
-# === Test combined dictionary methods
-fix_name_dict = define_fixes_dict(strain_fix_fname)  # tsv file in Input
+fname=zika_fasta
+
+# Early exit if file not found
+try:
+    fhandle = open(fname, 'r')
+except IOError:
+    raise Exception(fname, "not found")
+
+fix_name_dict = define_fixes_dict(strain_fix_fname)         # if defined 
 fix_location_dict = define_fixes_dict(location_fix_fname)
 fix_date_dict = define_fixes_dict(date_fix_fname)
 
-# === Process a smaller data file
-zika_fasta = "../example_data/small.fasta"
+try:
+    shandle = open("sequences.fasta", 'w')
+    mhandle = open("metadata.tsv", 'w')
+    shandle.close()
+    mhandle.close()
+    shandle = open("sequences.fasta", 'a')
+    mhandle = open("metadata.tsv", 'a')
+    mhandle.write("\t".join(("strain", "virus", "accession", "date", "region", "country", "division", "city", "db", "segment", "authors", "url", "title", "journal", "paper_url"))+"\n")
+except IOError:
+    raise Exception('Cannot write to sequences.fasta and/or metadata.tsv')
 
-zika_seqs = parse_fasta_file(zika_seqs, virus_fasta_fields, sequence_fasta_fields, fasta_header_fix = False)
+for record in SeqIO.parse(fhandle, "fasta"):
+    #print(record.id) # Header, Breaks at spaces!
+    print(record.description) # Whole header
+    content = list(
+        map(lambda x: x.strip(), 
+            record.description
+            .replace(" ", "_") # Deal with spaces
+            .split('|'))
+    )
+    print(content)
+    metadata = {key: content[ii] if ii < len(content) else "" for ii, key in header_fasta_fields.items()}
+    print("metadata=", metadata)
+    metadata["strain"] = fixes_strain_name(metadata["strain"], fixes_dict=fix_name_dict)
+    # metadata["collection_date"] = fixes_str(metadata["strain"], fix_date_dict) # based on fixed strain name?
+    # metadata["location"] = fixes_str(metadata["strain"], fix_location_dict)  # find where location is defined
+    print("metadata[strain]=", metadata["strain"])
+    
+    # Hmm, was an obj method (checking for "date", "collection date", "submission date", seems too specialized...)
+    # If you want to check for all dates, then check all fields for a XXXX-XX-XX or similar date format...
+    
+    metadata["collection_date"]=ncov_ingest_format_date(metadata["collection_date"], expected_date_formats)
+    print("metadata[collection_date]=", metadata["collection_date"])
+    shandle.write(">" + metadata["strain"] + "\n")
+    shandle.write(str(record.seq).lower() + "\n") # todo: split in lines of 80 char
+    mhandle.write("\t".join((metadata["strain"], "zika", metadata["accession"], metadata["collection_date"]))+"\n")
 
-print(zika_seqs[0])
-print("\n\nstrain: ",zika_seqs[0][0]['strain'])
-print("fix_strain_name output:", fixes_strain_name(zika_seqs[0][0]['strain']))
+shandle.close()
+mhandle.close()
+fhandle.close()

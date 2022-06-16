@@ -71,6 +71,7 @@ def fixes_strain_name(name, fixes_dict={}, fixes_tsv:str="") -> (str,str): # Sin
     name = fixes_str(name, fixes_dict)
     return name
 
+# For it's nice API and masking unknown M, Y, D use: https://github.com/nextstrain/monkeypox/blob/master/ingest/bin/transform-date-fields
 def ncov_ingest_format_date(date_string: str, expected_formats: set) -> str:
     """
     Format *date_string* to ISO 8601 date (YYYY-MM-DD).

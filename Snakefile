@@ -1,45 +1,57 @@
+from doctest import debug_script
+from snakemake.utils import min_version
+
+min_version("6.0")
+
+
+# ==== Import prepare.smk from Monkeypox build
+module monkeypox_prepare:
+    snakefile:
+        github(
+            "nextstrain/monkeypox",
+            path="workflow/snakemake_rules/prepare.smk",
+            branch="master",
+        )
+
+
+# # ==== Import core.smk from Monkeypox build
+# module monkeypox_core:
+#     snakefile:
+#         github(
+#             "nextstrain/monkeypox",
+#             path="workflow/snakemake_rules/core.smk",
+#             branch="master",
+#         )
+#
+# use rule * from monkeypox_core as other_*
+
+
 rule all:
     input:
-        auspice_json = "auspice/zika.json",
+        auspice_json="auspice/zika.json",
+
 
 rule files:
     params:
-        input_fasta = "data/zika.fasta",
-        dropped_strains = "config/dropped_strains.txt",
-        reference = "config/zika_reference.gb",
-        colors = "config/colors.tsv",
-        auspice_config = "config/auspice_config.json",
-        description = "config/description.md"
+        input_fasta="data/zika.fasta",
+        dropped_strains="config/dropped_strains.txt",
+        reference="config/zika_reference.gb",
+        colors="config/colors.tsv",
+        auspice_config="config/auspice_config.json",
+        description="config/description.md",
+
 
 files = rules.files.params
 
-rule download:
-    message: "Downloading sequences and metadata from data.nextstrain.org"
-    output:
-        sequences = "data/sequences.fasta.xz",
-        metadata = "data/metadata.tsv.gz"
-    params:
-        sequences_url = "https://data.nextstrain.org/files/zika/sequences.fasta.xz",
-        metadata_url = "https://data.nextstrain.org/files/zika/metadata.tsv.gz"
-    shell:
-        """
-        curl -fsSL --compressed {params.sequences_url:q} --output {output.sequences}
-        curl -fsSL --compressed {params.metadata_url:q} --output {output.metadata}
-        """
 
-rule decompress:
-    message: "Decompressing sequences and metadata"
-    input:
-        sequences = "data/sequences.fasta.xz",
-        metadata = "data/metadata.tsv.gz"
-    output:
-        sequences = "data/sequences.fasta",
-        metadata = "data/metadata.tsv"
-    shell:
-        """
-        gzip --decompress --keep {input.metadata}
-        xz --decompress --keep {input.sequences}
-        """
+use rule download from monkeypox_prepare as download with:
+    params:
+        sequences_url="https://data.nextstrain.org/files/zika/sequences.fasta.xz",
+        metadata_url="https://data.nextstrain.org/files/zika/metadata.tsv.gz",
+
+
+use rule decompress from monkeypox_prepare as decompress
+
 
 rule filter:
     message:
@@ -51,16 +63,16 @@ rule filter:
           - minimum genome length of {params.min_length} (50% of Zika virus genome)
         """
     input:
-        sequences = rules.decompress.output.sequences,
-        metadata = rules.decompress.output.metadata,
-        exclude = files.dropped_strains
+        sequences=rules.decompress.output.sequences,
+        metadata=rules.decompress.output.metadata,
+        exclude=files.dropped_strains,
     output:
-        sequences = "results/filtered.fasta"
+        sequences="results/filtered.fasta",
     params:
-        group_by = "country year month",
-        sequences_per_group = 40,
-        min_date = 2012,
-        min_length = 5385
+        group_by="country year month",
+        sequences_per_group=40,
+        min_date=2012,
+        min_length=5385,
     shell:
         """
         augur filter \
@@ -74,6 +86,7 @@ rule filter:
             --min-length {params.min_length}
         """
 
+
 rule align:
     message:
         """
@@ -81,10 +94,10 @@ rule align:
           - filling gaps with N
         """
     input:
-        sequences = rules.filter.output.sequences,
-        reference = files.reference
+        sequences=rules.filter.output.sequences,
+        reference=files.reference,
     output:
-        alignment = "results/aligned.fasta"
+        alignment="results/aligned.fasta",
     shell:
         """
         augur align \
@@ -95,18 +108,22 @@ rule align:
             --remove-reference
         """
 
+
+# use rule tree from monkeypox_core as tree with:
 rule tree:
-    message: "Building tree"
+    message:
+        "Building tree"
     input:
-        alignment = rules.align.output.alignment
+        alignment=rules.align.output.alignment,
     output:
-        tree = "results/tree_raw.nwk"
+        tree="results/tree_raw.nwk",
     shell:
         """
         augur tree \
             --alignment {input.alignment} \
             --output {output.tree}
         """
+
 
 rule refine:
     message:
@@ -118,16 +135,16 @@ rule refine:
           - filter tips more than {params.clock_filter_iqd} IQDs from clock expectation
         """
     input:
-        tree = rules.tree.output.tree,
-        alignment = rules.align.output,
-        metadata = rules.decompress.output.metadata
+        tree=rules.tree.output.tree,
+        alignment=rules.align.output,
+        metadata=rules.decompress.output.metadata,
     output:
-        tree = "results/tree.nwk",
-        node_data = "results/branch_lengths.json"
+        tree="results/tree.nwk",
+        node_data="results/branch_lengths.json",
     params:
-        coalescent = "opt",
-        date_inference = "marginal",
-        clock_filter_iqd = 4
+        coalescent="opt",
+        date_inference="marginal",
+        clock_filter_iqd=4,
     shell:
         """
         augur refine \
@@ -143,15 +160,17 @@ rule refine:
             --clock-filter-iqd {params.clock_filter_iqd}
         """
 
+
 rule ancestral:
-    message: "Reconstructing ancestral sequences and mutations"
+    message:
+        "Reconstructing ancestral sequences and mutations"
     input:
-        tree = rules.refine.output.tree,
-        alignment = rules.align.output
+        tree=rules.refine.output.tree,
+        alignment=rules.align.output,
     output:
-        node_data = "results/nt_muts.json"
+        node_data="results/nt_muts.json",
     params:
-        inference = "joint"
+        inference="joint",
     shell:
         """
         augur ancestral \
@@ -161,14 +180,16 @@ rule ancestral:
             --inference {params.inference}
         """
 
+
 rule translate:
-    message: "Translating amino acid sequences"
+    message:
+        "Translating amino acid sequences"
     input:
-        tree = rules.refine.output.tree,
-        node_data = rules.ancestral.output.node_data,
-        reference = files.reference
+        tree=rules.refine.output.tree,
+        node_data=rules.ancestral.output.node_data,
+        reference=files.reference,
     output:
-        node_data = "results/aa_muts.json"
+        node_data="results/aa_muts.json",
     shell:
         """
         augur translate \
@@ -178,6 +199,7 @@ rule translate:
             --output {output.node_data} \
         """
 
+
 rule traits:
     message:
         """
@@ -185,13 +207,13 @@ rule traits:
           - increase uncertainty of reconstruction by {params.sampling_bias_correction} to partially account for sampling bias
         """
     input:
-        tree = rules.refine.output.tree,
-        metadata = rules.decompress.output.metadata
+        tree=rules.refine.output.tree,
+        metadata=rules.decompress.output.metadata,
     output:
-        node_data = "results/traits.json",
+        node_data="results/traits.json",
     params:
-        columns = "region country",
-        sampling_bias_correction = 3
+        columns="region country",
+        sampling_bias_correction=3,
     shell:
         """
         augur traits \
@@ -203,26 +225,46 @@ rule traits:
             --sampling-bias-correction {params.sampling_bias_correction}
         """
 
-rule export:
-    message: "Exporting data files for for auspice"
+
+rule recency:
+    message:
+        "Use metadata on submission date to construct submission recency field"
     input:
-        tree = rules.refine.output.tree,
-        metadata = rules.decompress.output.metadata,
-        branch_lengths = rules.refine.output.node_data,
-        traits = rules.traits.output.node_data,
-        nt_muts = rules.ancestral.output.node_data,
-        aa_muts = rules.translate.output.node_data,
-        colors = files.colors,
-        auspice_config = files.auspice_config,
-        description = files.description
+        metadata=rules.decompress.output.metadata,
     output:
-        auspice_json = rules.all.input.auspice_json
+        node_data="results/recency.json",
+    shell:
+        """
+        wget https://raw.githubusercontent.com/nextstrain/monkeypox/929ed971ef881a9767a38e960943d41105d50d9b/scripts/construct-recency-from-submission-date.py
+
+        python3 construct-recency-from-submission-date.py \
+            --metadata {input.metadata} \
+            --output {output} 2>&1 | tee {log}
+        """
+
+
+rule export:
+    message:
+        "Exporting data files for for auspice"
+    input:
+        tree=rules.refine.output.tree,
+        metadata=rules.decompress.output.metadata,
+        branch_lengths=rules.refine.output.node_data,
+        traits=rules.traits.output.node_data,
+        nt_muts=rules.ancestral.output.node_data,
+        aa_muts=rules.translate.output.node_data,
+        recency=rules.recency.output.node_data,
+        colors=files.colors,
+        auspice_config=files.auspice_config,
+        description=files.description,
+    output:
+        auspice_json=rules.all.input.auspice_json,
     shell:
         """
         augur export v2 \
             --tree {input.tree} \
             --metadata {input.metadata} \
-            --node-data {input.branch_lengths} {input.traits} {input.nt_muts} {input.aa_muts} \
+            --node-data {input.branch_lengths} {input.traits} {input.nt_muts} {input.aa_muts} {input.recency} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \
@@ -230,11 +272,13 @@ rule export:
             --output {output.auspice_json}
         """
 
+
 rule clean:
-    message: "Removing directories: {params}"
+    message:
+        "Removing directories: {params}"
     params:
         "data ",
         "results ",
-        "auspice"
+        "auspice",
     shell:
         "rm -rfv {params}"

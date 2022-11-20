@@ -25,17 +25,19 @@ rule fetch_from_genbank:
     params:
         serotype_tax_id=download_serotype,
         csv_to_ndjson_url="https://raw.githubusercontent.com/nextstrain/monkeypox/master/ingest/bin/csv-to-ndjson",
+        fetch_from_genbank_url="https://raw.githubusercontent.com/nextstrain/dengue/new_ingest/ingest/bin/fetch-from-genbank",
+        genbank_url_url="https://raw.githubusercontent.com/nextstrain/dengue/new_ingest/ingest/bin/genbank-url", # Update if dengue merged
     shell:
         """
         if [[ ! -d bin ]]; then
           mkdir bin
         fi
-        if [[ ! -f bin/csv-to-ndjson ]]; then
-          cd bin
-          wget {params.csv_to_ndjson_url}
-          chmod 755 *
-          cd ..
-        fi
+        cd bin
+        [[ -f csv-to-ndjson ]] || wget {params.csv_to_ndjson_url}
+        [[ -f genbank-url ]] || wget {params.genbank_url_url}
+        [[ -f fetch-from-genbank ]] || wget {params.fetch_from_genbank_url}
+        chmod 755 *
+        cd ..
         ./bin/fetch-from-genbank {params.serotype_tax_id} > {output.genbank_ndjson}
         """
 

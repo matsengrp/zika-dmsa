@@ -1,16 +1,16 @@
-# nextstrain.org/dengue/ingest
+# nextstrain.org/zika/ingest
 
-This is the ingest pipeline for Dengue virus sequences.
+This is the ingest pipeline for Zika virus sequences.
 
 ## Usage
 
 > NOTE: All command examples assume you are within the `ingest` directory.
-> If running commands from the outer `dengue` directory, please replace the `.` with `ingest`
+> If running commands from the outer `zika` directory, please replace the `.` with `ingest`
 
 Fetch sequences with
 
 ```sh
-nextstrain build --cpus 1 . data/sequences.ndjson
+nextstrain build --cpus 1 . data/sequences_all.ndjson
 ```
 
 Run the complete ingest pipeline with
@@ -21,8 +21,8 @@ nextstrain build --cpus 1 .
 
 This will produce two files (within the `ingest` directory):
 
-- data/metadata.tsv
-- data/sequences.fasta
+- data/metadata_all.tsv
+- data/sequences_all.fasta
 
 Run the complete ingest pipeline and upload results to AWS S3 with
 
@@ -39,6 +39,8 @@ Do the following to include sequences from static FASTA files.
 1. Convert the FASTA files to NDJSON files with:
 
     ```sh
+    wget https://raw.githubusercontent.com/nextstrain/monkeypox/master/ingest/bin/fasta-to-ndjson -O ingest/bin/fasta-to-ndjson
+    chmod 755 ingest/bin/fasta-to-ndjson
     ./ingest/bin/fasta-to-ndjson \
         --fasta {path-to-fasta-file} \
         --fields {fasta-header-field-names} \

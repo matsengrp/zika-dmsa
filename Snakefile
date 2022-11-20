@@ -1,3 +1,6 @@
+if not config:
+    configfile: "config/config_zika.yaml"
+
 rule all:
     input:
         auspice_json = "auspice/zika.json",
@@ -16,31 +19,40 @@ files = rules.files.params
 rule download:
     message: "Downloading sequences and metadata from data.nextstrain.org"
     output:
-        sequences = "data/sequences.fasta.zst",
-        metadata = "data/metadata.tsv.zst"
-    params:
-        sequences_url = "https://data.nextstrain.org/files/zika/sequences.fasta.zst",
-        metadata_url = "https://data.nextstrain.org/files/zika/metadata.tsv.zst"
-    shell:
-        """
-        curl -fsSL --compressed {params.sequences_url:q} --output {output.sequences}
-        curl -fsSL --compressed {params.metadata_url:q} --output {output.metadata}
-        """
-
-rule decompress:
-    message: "Decompressing sequences and metadata"
-    input:
-        sequences = "data/sequences.fasta.zst",
-        metadata = "data/metadata.tsv.zst"
-    output:
         sequences = "data/sequences.fasta",
-        metadata = "data/metadata.tsv"
+        metadata = "data/metadata.tsv",
+    params:
+        sequences_url = "https://data.nextstrain.org/files/workflows/zika/test/sequences_all.fasta.zst",
+        metadata_url = "https://data.nextstrain.org/files/workflows/zika/test/metadata_all.tsv.zst"
     shell:
         """
-        zstd -d -c {input.sequences} > {output.sequences}
-        zstd -d -c {input.metadata} > {output.metadata}
+        curl -fsSL {params.sequences_url:q} --output {output.sequences}
+        curl -fsSL {params.metadata_url:q} --output {output.metadata}
         """
 
+rule wrangle_metadata:
+    input:
+        metadata=rules.download.output.metadata,
+    output:
+        metadata="results/wrangled_metadata.tsv",
+    params:
+        strain_id=lambda w: config.get("strain_id_field", "strain"),
+    shell:
+        """
+        if [[ ! -d bin ]]; then
+          mkdir bin
+        fi
+        if [[ ! -f bin/wrangle_metadata.py ]]; then
+          cd bin
+          wget https://raw.githubusercontent.com/nextstrain/monkeypox/master/scripts/wrangle_metadata.py
+          chmod 755 *
+          cd ..
+        fi
+
+        python3 ./bin/wrangle_metadata.py --metadata {input.metadata} \
+            --strain-id {params.strain_id} \
+            --output {output.metadata}
+        """
 rule filter:
     message:
         """
@@ -51,8 +63,8 @@ rule filter:
           - minimum genome length of {params.min_length} (50% of Zika virus genome)
         """
     input:
-        sequences = rules.decompress.output.sequences,
-        metadata = rules.decompress.output.metadata,
+        sequences = rules.download.output.sequences,
+        metadata = rules.wrangle_metadata.output.metadata,
         exclude = files.dropped_strains
     output:
         sequences = "results/filtered.fasta"
@@ -120,7 +132,7 @@ rule refine:
     input:
         tree = rules.tree.output.tree,
         alignment = rules.align.output,
-        metadata = rules.decompress.output.metadata
+        metadata = rules.wrangle_metadata.output.metadata
     output:
         tree = "results/tree.nwk",
         node_data = "results/branch_lengths.json"
@@ -186,7 +198,7 @@ rule traits:
         """
     input:
         tree = rules.refine.output.tree,
-        metadata = rules.decompress.output.metadata
+        metadata = rules.wrangle_metadata.output.metadata
     output:
         node_data = "results/traits.json",
     params:
@@ -207,7 +219,7 @@ rule export:
     message: "Exporting data files for for auspice"
     input:
         tree = rules.refine.output.tree,
-        metadata = rules.decompress.output.metadata,
+        metadata = rules.wrangle_metadata.output.metadata,
         branch_lengths = rules.refine.output.node_data,
         traits = rules.traits.output.node_data,
         nt_muts = rules.ancestral.output.node_data,

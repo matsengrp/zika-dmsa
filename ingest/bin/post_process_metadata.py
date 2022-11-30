@@ -56,19 +56,6 @@ def _set_paper_url(record):
     return "https://www.ncbi.nlm.nih.gov/pubmed/" + record['publications']
   return ""
 
-def _set_dengue_serotype(record):
-  """Set dengue serotype from viruslineage_ids"""
-  if "11053" in record['viruslineage_ids']:
-    return "denv1"
-  elif "11060" in record['viruslineage_ids']:
-    return "denv2"
-  elif "11069" in record['viruslineage_ids']:
-    return "denv3"
-  elif "11070" in record['viruslineage_ids']:
-    return "denv4"
-  else:
-    return ""
-
 # === Main Method
 def main():
   args = parse_args()
@@ -78,12 +65,11 @@ def main():
   df['strain'] = df.apply(_set_strain_name, axis=1)
   df['url'] = df.apply(_set_url, axis=1)
   df['paper_url'] = df.apply(_set_paper_url, axis=1)
-  df['serotype'] = df.apply(_set_dengue_serotype, axis=1)
   df['authors'] = df['abbr_authors']
   df['city'] = df['location']
 
   # Format output
-  METADATA_COLUMNS = ["strain", "accession", "genbank_accession_rev","serotype", "date", "updated", "region", "country", "division", "city", "authors", "url", "title", "paper_url"]
+  METADATA_COLUMNS = ["strain", "accession", "genbank_accession_rev", "date", "updated", "region", "country", "division", "city", "authors", "url", "title", "paper_url"]
   df = df.reindex(METADATA_COLUMNS, axis=1)
   df.to_csv(args.outfile, sep='\t', index=False)
 

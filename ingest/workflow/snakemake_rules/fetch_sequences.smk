@@ -15,11 +15,7 @@ Produces final output as
 
 def download_serotype(w):
     serotype = {
-        'all': '12637',
-        # 'denv1': '11053',
-        # 'denv2': '11060',
-        # 'denv3': '11069',
-        # 'denv4': '11070'
+        'all': '64320',
     }
     return serotype[w.serotype]
 

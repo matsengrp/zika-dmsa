@@ -1,0 +1,21 @@
+#!/bin/bash
+#
+# Originally copied from "bin/fetch-from-genbank" in nextstrain/ncov-ingest:
+#   https://github.com/nextstrain/ncov-ingest/blob/2a5f255329ee5bdf0cabc8b8827a700c92becbe4/bin/fetch-from-genbank
+#
+set -euo pipefail
+
+bin="$(dirname "$0")"
+TAXID="${1:?NCBI taxon id is required.}"
+
+main() {
+    fetch "$TAXID" | "$bin"/csv-to-ndjson
+}
+
+fetch() {
+    curl "$("$bin"/genbank-url --taxonid "$1")" \
+        --fail --silent --show-error --http1.1 \
+        --header 'User-Agent: https://github.com/nextstrain/dengue (hello@nextstrain.org)'
+}
+
+main "$@"

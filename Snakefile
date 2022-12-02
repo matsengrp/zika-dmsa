@@ -228,7 +228,8 @@ rule export:
         auspice_config = files.auspice_config,
         description = files.description
     output:
-        auspice_json = rules.all.input.auspice_json
+        auspice_json = "results/raw_zika.json",
+        root_sequence = "results/raw_zika_root-sequence.json",
     shell:
         """
         augur export v2 \
@@ -240,6 +241,36 @@ rule export:
             --description {input.description} \
             --include-root-sequence \
             --output {output.auspice_json}
+        """
+
+rule final_strain_name:
+    input:
+        auspice_json=rules.export.output.auspice_json,
+        metadata=rules.wrangle_metadata.output.metadata,
+        root_sequence=rules.export.output.root_sequence,
+    output:
+        auspice_json=rules.all.input.auspice_json,
+        root_sequence="auspice/zika_root-sequence.json",
+    params:
+        display_strain_field=lambda w: config.get("display_strain_field", "strain"),
+        set_final_strain_name_url="https://raw.githubusercontent.com/nextstrain/monkeypox/master/scripts/set_final_strain_name.py",
+    shell:
+        """
+        if [[ ! -d bin ]]; then
+          mkdir bin
+        fi
+        cd bin
+        [[ -f set_final_strain_name.py ]] || wget {params.set_final_strain_name_url}
+        chmod 755 *
+        cd ..
+
+        python3 bin/set_final_strain_name.py \
+            --metadata {input.metadata} \
+            --input-auspice-json {input.auspice_json} \
+            --display-strain-name {params.display_strain_field} \
+            --output {output.auspice_json}
+
+        cp {input.root_sequence} {output.root_sequence}
         """
 
 rule clean:

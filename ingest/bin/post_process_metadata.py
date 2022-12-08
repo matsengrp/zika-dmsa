@@ -54,13 +54,13 @@ def _set_strain_name(record):
 
 def _set_url(record):
     """Set url column from accession"""
-    return "https://www.ncbi.nlm.nih.gov/nuccore/" + record["accession"]
+    return "https://www.ncbi.nlm.nih.gov/nuccore/" + str(record["accession"])
 
 
 def _set_paper_url(record):
     """Set paper_url from publication"""
     if pd.notna(record["publications"]):
-        paper_url = "https://www.ncbi.nlm.nih.gov/pubmed/" + record["publications"]
+        paper_url = "https://www.ncbi.nlm.nih.gov/pubmed/" + str(record["publications"])
         return paper_url.split(",")[0]
     return ""
 

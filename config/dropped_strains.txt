@@ -1,3 +1,10 @@
+OK054351
+MK105975
+MN025403
+OL414716
+MT478034
+MW680969
+MW680970
 PF13/251013_18 # reference included in config/zika_reference.gb
 AFMC_U # too basal
 AFMC_S # too basal

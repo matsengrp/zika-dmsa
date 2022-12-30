@@ -24,9 +24,9 @@ rule fetch_from_genbank:
         genbank_ndjson="data/genbank_{serotype}.ndjson",
     params:
         serotype_tax_id=download_serotype,
-        csv_to_ndjson_url="https://raw.githubusercontent.com/nextstrain/monkeypox/master/ingest/bin/csv-to-ndjson",
-        fetch_from_genbank_url="https://raw.githubusercontent.com/nextstrain/dengue/new_ingest/ingest/bin/fetch-from-genbank",
-        genbank_url_url="https://raw.githubusercontent.com/nextstrain/dengue/new_ingest/ingest/bin/genbank-url", # Update if dengue merged
+        csv_to_ndjson_url="https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/csv-to-ndjson",
+        fetch_from_genbank_url="https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/fetch-from-genbank",
+        genbank_url_url="https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/genbank-url", # Update if dengue merged
     shell:
         """
         if [[ ! -d bin ]]; then

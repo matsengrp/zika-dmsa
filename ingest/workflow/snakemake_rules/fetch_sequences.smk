@@ -23,10 +23,7 @@ rule fetch_from_genbank:
     output:
         genbank_ndjson="data/genbank_{serotype}.ndjson",
     params:
-        serotype_tax_id=download_serotype,
-        csv_to_ndjson_url="https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/csv-to-ndjson",
-        fetch_from_genbank_url="https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/fetch-from-genbank",
-        genbank_url_url="https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/genbank-url", # Update if dengue merged
+        ncbi_taxon_id=download_serotype,
     shell:
         """
         # (1) Pick curl or wget based on availability    
@@ -41,13 +38,13 @@ rule fetch_from_genbank:
 
         # (2) Download the required scripts if not already present
         [[ -d bin ]] || mkdir bin
-        [[ -f bin/csv-to-ndjson ]]      || $download_cmd bin/csv-to-ndjson {params.csv_to_ndjson_url}
-        [[ -f bin/genbank-url ]]        || $download_cmd bin/genbank-url {params.genbank_url_url}
-        [[ -f bin/fetch-from-genbank ]] || $download_cmd bin/fetch-from-genbank {params.fetch_from_genbank_url}
+        [[ -f bin/csv-to-ndjson ]]      || $download_cmd bin/csv-to-ndjson "https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/csv-to-ndjson"
+        [[ -f bin/genbank-url ]]        || $download_cmd bin/genbank-url "https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/genbank-url"
+        [[ -f bin/fetch-from-genbank ]] || $download_cmd bin/fetch-from-genbank "https://raw.githubusercontent.com/nextstrain/dengue/ca659008bfbe4b3f799e11ecd106a0b95977fe93/ingest/bin/fetch-from-genbank"
         chmod +x bin/*
         
         # (3) Fetch the sequences
-        ./bin/fetch-from-genbank {params.serotype_tax_id} > {output.genbank_ndjson}
+        ./bin/fetch-from-genbank {params.ncbi_taxon_id} > {output.genbank_ndjson}
         """
 
 

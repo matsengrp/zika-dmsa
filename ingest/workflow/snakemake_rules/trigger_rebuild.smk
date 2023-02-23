@@ -13,8 +13,6 @@ rule trigger_build:
         fasta_upload = "data/upload/s3/sequences.fasta-to-sequences.fasta.xz.done"
     output:
         touch("data/trigger/rebuild.done")
-    params:
-        trigger_on_new_data_url="https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/trigger-on-new-data"
     shell:
         """
         # (1) Pick curl or wget based on availability    
@@ -29,7 +27,7 @@ rule trigger_build:
 
         # (2) Download the required scripts if not already present
         [[ -d bin ]] || mkdir bin
-        [[ -f bin/trigger-on-new-data ]] || $download_cmd bin/trigger-on-new-data {params.trigger_on_new_data_url}
+        [[ -f bin/trigger-on-new-data ]] || $download_cmd bin/trigger-on-new-data "https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/trigger-on-new-data"
         chmod +x bin/*
         
         # (3) Trigger the build

@@ -18,7 +18,7 @@ if not slack_envvars_defined:
     )
     sys.exit(1)
 
-S3_SRC = "s3://nextstrain-data/files/workflows/dengue"
+S3_SRC = "s3://nextstrain-data/files/workflows/zika"
 
 
 rule notify_on_genbank_record_change:
@@ -28,7 +28,6 @@ rule notify_on_genbank_record_change:
         touch("data/notify/genbank-record-change.done"),
     params:
         s3_src=S3_SRC,
-        notify_on_record_change_url="https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/notify-on-record-change",
     shell:
         """
         # (1) Pick curl or wget based on availability    
@@ -43,7 +42,7 @@ rule notify_on_genbank_record_change:
 
         # (2) Download the required scripts if not already present
         [[ -d bin ]] || mkdir bin
-        [[ -f bin/notify-on-record-change ]] || $download_cmd bin/notify-on-record-change {params.notify_on_record_change_url}
+        [[ -f bin/notify-on-record-change ]] || $download_cmd bin/notify-on-record-change "https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/notify-on-record-change"
         chmod +x bin/*
         
         # (3) Run the script
@@ -58,7 +57,6 @@ rule notify_on_metadata_diff:
         touch("data/notify/metadata-diff.done"),
     params:
         s3_src=S3_SRC,
-        notify_on_diff_url = "https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/notify-on-diff",
     shell:
         """
         # (1) Pick curl or wget based on availability    
@@ -73,7 +71,7 @@ rule notify_on_metadata_diff:
 
         # (2) Download the required scripts if not already present
         [[ -d bin ]] || mkdir bin
-        [[ -f bin/notify-on-diff ]] || $download_cmd bin/notify-on-diff {params.notify_on_diff_url}
+        [[ -f bin/notify-on-diff ]] || $download_cmd bin/notify-on-diff "https://raw.githubusercontent.com/nextstrain/monkeypox/644d07ebe3fa5ded64d27d0964064fb722797c5d/ingest/bin/notify-on-diff"
         chmod +x bin/*
         
         # (3) Run the script

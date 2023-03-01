@@ -185,7 +185,7 @@ rule translate:
         node_data = rules.ancestral.output.node_data,
         reference = files.reference
     output:
-        node_data = "results/aa_muts.json"
+        node_data = "results/aa_muts.json",
         alignments = expand("results/translations/{gene}.fasta", gene=["CA","PRO","MP","ENV","NS1","NS2A","NS2B","NS3","NS4A","2K","NS4B","NS5"])
     shell:
         """
@@ -200,7 +200,7 @@ rule translate:
 
 rule additive_phenotype_prediction:
     input:
-        alignments = "results/translations/s_GPC.fasta"
+        alignments = "results/translations/ENV.fasta"
     output:
         node_data = "results/additive_phenotype_prediction.json"
     log:

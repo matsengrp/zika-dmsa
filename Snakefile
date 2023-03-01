@@ -186,13 +186,41 @@ rule translate:
         reference = files.reference
     output:
         node_data = "results/aa_muts.json"
+        alignments = expand("results/translations/{gene}.fasta", gene=["CA","PRO","MP","ENV","NS1","NS2A","NS2B","NS3","NS4A","2K","NS4B","NS5"])
     shell:
         """
         augur translate \
             --tree {input.tree} \
+            --genes CA PRO MP ENV NS1 NS2A NS2B NS3 NS4A 2K NS4B NS5 \
             --ancestral-sequences {input.node_data} \
             --reference-sequence {input.reference} \
-            --output {output.node_data} \
+            --output-node-data {output.node_data} \
+            --alignment-output results/translations/%GENE.fasta
+        """
+
+rule additive_phenotype_prediction:
+    input:
+        alignments = "results/translations/s_GPC.fasta"
+    output:
+        node_data = "results/additive_phenotype_prediction.json"
+    log:
+        "logs/additive_phenotype_prediction.txt"
+    params:
+        dms_wt_seq = "HQ234498.1",
+        mut_escape_df = "my_profiles/diff-sel-data/MZ4/summary_MZ4-medianmutdiffsel.csv",
+    conda:
+        "my_profiles/dmsa-pred/dmsa_env.yaml"
+    resources:
+        mem_mb=2000
+    shell:
+        """
+        python my_profiles/dmsa-pred/dmsa_pred.py additive-penotype \
+            --phenotype-column mutdiffsel \
+            --alignment {input.alignments} \
+            --mut-effects-df {params.mut_escape_df} \
+            --dms-wt-seq-id {params.dms_wt_seq:q} \
+            --experiment-label MZ4 \
+            --output {output.node_data} 2>&1 | tee {log}
         """
 
 rule traits:
@@ -227,6 +255,7 @@ rule export:
         metadata = rules.wrangle_metadata.output.metadata,
         branch_lengths = rules.refine.output.node_data,
         traits = rules.traits.output.node_data,
+        phenotype_predictions = rules.additive_phenotype_prediction.output.node_data,
         nt_muts = rules.ancestral.output.node_data,
         aa_muts = rules.translate.output.node_data,
         colors = files.colors,
@@ -240,7 +269,7 @@ rule export:
         augur export v2 \
             --tree {input.tree} \
             --metadata {input.metadata} \
-            --node-data {input.branch_lengths} {input.traits} {input.nt_muts} {input.aa_muts} \
+            --node-data {input.branch_lengths} {input.traits} {input.nt_muts} {input.aa_muts} {input.phenotype_predictions} \
             --colors {input.colors} \
             --auspice-config {input.auspice_config} \
             --description {input.description} \

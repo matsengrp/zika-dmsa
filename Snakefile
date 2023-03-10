@@ -8,7 +8,9 @@ rule files:
     params:
         input_fasta = "data/zika.fasta",
         dropped_strains = "config/dropped_strains.txt",
-        reference = "config/zika_reference.gb",
+        include_strains = "config/include_strains.txt",
+        reference = "config/HQ234498.1_gene_map.gff",
+        reference_sequence = "config/HQ234498.1.fasta",
         colors = "config/colors.tsv",
         auspice_config = "config/auspice_config.json",
         description = "config/description.md"
@@ -70,7 +72,8 @@ rule filter:
     input:
         sequences = rules.decompress.output.sequences,
         metadata = rules.wrangle_metadata.output.metadata,
-        exclude = files.dropped_strains
+        exclude = files.dropped_strains,
+        include = files.include_strains
     output:
         sequences = "results/filtered.fasta"
     params:
@@ -84,6 +87,7 @@ rule filter:
             --sequences {input.sequences} \
             --metadata {input.metadata} \
             --exclude {input.exclude} \
+            --include {input.include} \
             --output {output.sequences} \
             --group-by {params.group_by} \
             --sequences-per-group {params.sequences_per_group} \
@@ -94,19 +98,19 @@ rule filter:
 rule align:
     message:
         """
-        Aligning sequences to {input.reference}
+        Aligning sequences to {input.reference_sequence}
           - filling gaps with N
         """
     input:
         sequences = rules.filter.output.sequences,
-        reference = files.reference
+        reference_sequence = files.reference_sequence
     output:
         alignment = "results/aligned.fasta"
     shell:
         """
         augur align \
             --sequences {input.sequences} \
-            --reference-sequence {input.reference} \
+            --reference-sequence {input.reference_sequence} \
             --output {output.alignment} \
             --fill-gaps \
             --remove-reference
@@ -186,12 +190,12 @@ rule translate:
         reference = files.reference
     output:
         node_data = "results/aa_muts.json",
-        alignments = expand("results/translations/{gene}.fasta", gene=["CA","PRO","MP","ENV","NS1","NS2A","NS2B","NS3","NS4A","2K","NS4B","NS5"])
+        alignments = expand("results/translations/{gene}.fasta", gene=["ENV"])
     shell:
         """
         augur translate \
             --tree {input.tree} \
-            --genes CA PRO MP ENV NS1 NS2A NS2B NS3 NS4A 2K NS4B NS5 \
+            --genes ENV \
             --ancestral-sequences {input.node_data} \
             --reference-sequence {input.reference} \
             --output-node-data {output.node_data} \
@@ -214,7 +218,7 @@ rule additive_phenotype_prediction:
         mem_mb=2000
     shell:
         """
-        python my_profiles/dmsa-pred/dmsa_pred.py additive-penotype \
+        python my_profiles/dmsa-pred/dmsa_pred.py additive-phenotype \
             --phenotype-column mutdiffsel \
             --alignment {input.alignments} \
             --mut-effects-df {params.mut_escape_df} \

@@ -1,0 +1,5 @@
+# Gene map (genome annotation) of nipah in GFF format.
+# For gene map purpses we only need some of the columns. We substitute unused values with "." as per GFF spec.
+# See GFF format reference at https://www.ensembl.org/info/website/upload/gff.html
+# seqname	source	feature	start	end	score	strand	frame	attribute
+HQ234498.1	.	gene	871	2382	.	+	.	 gene_name=ENV

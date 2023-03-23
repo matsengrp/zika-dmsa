@@ -1,0 +1,46 @@
+inputs:
+  - name: HQ234498.1
+    sequences: my_profiles/HQ234498.1-sequence.fasta
+    metadata: my_profiles/HQ234498.1-metadata.tsv
+
+
+strain_id_field: "accession"
+display_strain_field: "strain_original"
+
+# sequence which all indels are relative to during msa
+reference: "HQ234498.1"
+reference_annotation: "config/HQ234498.1_gene_map.gff"
+
+diff_sel_models:
+  MZ4:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/MZ4_mut_diff_sel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+  EDE1-C10:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/EDE1-C10_median_mutationaldiffsel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+  EDE1-C8:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/EDE1-C8_median_mutationaldiffsel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+  SiGN-3C:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/SiGN-3C_median_mutationaldiffsel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+  ZKA-64:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/ZKA-64_median_mutationaldiffsel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+  ZV-67:
+    dms_wt_seq_id: "HQ234498.1" 
+    mut_effects_df: my_profiles/diff-sel-data/ZV-67_median_mutationaldiffsel.csv
+    mut_effect_col: "mutdiffsel"
+    mutation_col: "mutant"
+
+
